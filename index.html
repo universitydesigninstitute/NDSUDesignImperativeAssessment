@@ -1,0 +1,451 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>NDSU Readiness Dashboard</title>
+<style>
+/* Layout: optional tab bar over three panels (Design Imperatives, Capacity Heat Map, Priority Scatterplot). UDI brand: ASU Blue leads, black/white/gray neutrals, gold and green accents, maroon for the defer quadrant; Neue Haas Grotesk with Helvetica fallbacks; sentence case, no italics. */
+:root{
+  --bg:#FFFFFF; --surface:#FFFFFF; --fg:#000000; --muted:#747474; --line:#D2D2D2; --grid:#E8E8E8;
+  --accent:#00A3E0; --accent-tint:#E5F6FC; --gold:#FFC627; --green:#78BE20; --orange:#FF7F32; --maroon:#8C1D40;
+  --q-proto:#78BE20; --q-scale:#00A3E0; --q-lev:#FFC627; --q-defer:#8C1D40;
+  --f-body:"Neue Haas Grotesk Text Pro","Neue Haas Grotesk Display Pro","Helvetica Neue",Helvetica,Arial,sans-serif;
+  --f-display:"Neue Haas Grotesk Display Pro","Neue Haas Grotesk Text Pro","Helvetica Neue",Helvetica,Arial,sans-serif;
+  color-scheme:light;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;padding-inline:16px;padding-block:8px 24px;font-variant-numeric:tabular-nums}
+.wrap{max-width:1180px;margin:0 auto}
+nav.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);overflow-x:auto;margin-bottom:4px}
+nav.tabs button{font:500 15px var(--f-body);background:none;border:0;color:var(--muted);padding:12px 16px;cursor:pointer;border-bottom:4px solid transparent;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--fg);font-weight:700;border-bottom-color:var(--accent)}
+button:focus-visible,select:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+section.panel{padding-top:20px}
+h2{font:700 24px/1.15 var(--f-display);margin:0 0 6px;text-wrap:balance}
+.sub{color:var(--muted);font-size:13.5px;line-height:1.5;margin:0 0 16px;max-width:75ch}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:20px}
+.stat{background:var(--surface);border:1px solid var(--line);border-top:4px solid var(--accent);padding:12px 14px;min-width:0}
+.stat .k{font:500 12px var(--f-body);color:var(--muted)}
+.stat .v{font:700 28px var(--f-display);margin-top:6px}
+.stat .n{font-size:12.5px;color:var(--muted);margin-top:2px}
+.card{background:var(--surface);border:1px solid var(--line);padding:16px;min-width:0}
+.controls{display:flex;flex-wrap:wrap;gap:12px 22px;align-items:center;margin-bottom:14px}
+.ctl{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+.seg{display:inline-flex;border:1px solid var(--fg)}
+.seg button{font:500 13px var(--f-body);background:var(--surface);color:var(--fg);border:0;padding:7px 12px;cursor:pointer;border-right:1px solid var(--fg)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#000;font-weight:700}
+select{font:13px var(--f-body);background:var(--surface);color:var(--fg);border:1px solid var(--fg);padding:6px 8px}
+.axis{display:grid;grid-template-columns:minmax(120px,260px) 1fr 120px;gap:14px;align-items:end;font:12px var(--f-body);color:var(--muted);margin-bottom:6px}
+.axis .ticks{position:relative;height:14px}
+.axis .ticks span{position:absolute;transform:translateX(-50%)}
+.row{display:grid;grid-template-columns:minmax(120px,260px) 1fr 120px;gap:14px;align-items:center;padding:10px 0;border-top:1px solid var(--grid);cursor:pointer}
+.row:hover .lbl{text-decoration:underline}
+.row.sel{background:var(--accent-tint)}
+.lbl{font-size:14px;font-weight:700;line-height:1.3}
+.track{position:relative;height:22px;background:linear-gradient(to right,var(--grid) 1px,transparent 1px) 0 0/25% 100%,var(--bg)}
+.track::after{content:"";position:absolute;right:0;top:0;bottom:0;width:1px;background:var(--grid)}
+.bar{position:absolute;left:0;top:3px;bottom:3px;background:var(--accent)}
+.mid{position:absolute;left:50%;top:-2px;bottom:-2px;border-left:1px dashed var(--muted)}
+.val{position:absolute;top:50%;transform:translateY(-50%);font:700 12px var(--f-body);padding-left:6px}
+.meta{font:12px var(--f-body);color:var(--muted);text-align:right;line-height:1.4}
+.detail{margin-top:20px}
+.detail h3{font:700 18px var(--f-display);margin:0 0 4px}
+.stmt{display:grid;grid-template-columns:minmax(160px,1fr) minmax(160px,1fr);gap:14px;align-items:center;padding:8px 0;border-top:1px solid var(--grid);font-size:13px;line-height:1.35}
+.stmt .track{height:18px}
+.chip-row{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{font:500 12.5px var(--f-body);background:var(--surface);color:var(--fg);border:1px solid var(--fg);padding:5px 11px;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);color:#000;font-weight:700}
+.note{font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:14px;max-width:80ch}
+.scroll{overflow-x:auto}
+table.heat{border-collapse:separate;border-spacing:2px;width:100%;min-width:640px;table-layout:fixed}
+table.heat th{font:700 12px var(--f-body);color:var(--fg);text-align:center;padding:6px 4px;vertical-align:bottom}
+table.heat th.pl{text-align:left;width:34%}
+table.heat td.pl{font-size:13px;line-height:1.3;padding:6px 8px 6px 0}
+table.heat td.c{font:700 14px var(--f-body);text-align:center;height:44px;color:#000}
+table.heat td.avg{outline:2px solid #000;outline-offset:-2px}
+.legend{display:flex;align-items:center;gap:10px;font:12px var(--f-body);color:var(--muted)}
+.legend .grad{width:200px;height:10px}
+.plot{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;align-items:start}
+@media (max-width:900px){.plot{grid-template-columns:1fr}.axis{display:none}.row{grid-template-columns:1fr}.meta{text-align:left}.stmt{grid-template-columns:1fr}}
+svg text{font-family:var(--f-body)}
+.qlist{width:100%;border-collapse:collapse;font-size:12.5px}
+.qlist th{font:700 12px var(--f-body);color:var(--fg);text-align:left;padding:4px 6px;border-bottom:2px solid var(--fg)}
+.qlist td{padding:6px;border-bottom:1px solid var(--grid);vertical-align:top;line-height:1.3}
+.qlist td.num{text-align:right;white-space:nowrap}
+.qlist tr.hl{background:var(--accent-tint)}
+.ltr{display:inline-flex;width:20px;height:20px;border-radius:50%;align-items:center;justify-content:center;font:700 11px var(--f-body)}
+.tip{position:fixed;z-index:20;pointer-events:none;background:#000;color:#fff;padding:8px 10px;font-size:12px;line-height:1.4;max-width:260px}
+.qkey{display:flex;flex-wrap:wrap;gap:8px 16px;font-size:12px;color:var(--muted);margin-top:10px}
+.qkey i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.flag{border-left:4px solid var(--gold);padding:8px 12px;background:var(--surface);font-size:12.5px;line-height:1.5;color:var(--muted);margin-top:16px;max-width:90ch}
+.flag b{color:var(--fg)}
+.source{font-size:12px;color:var(--muted);margin-top:20px}
+</style>
+</head><body>
+
+<div class="wrap">
+<nav class="tabs" role="tablist" aria-label="Dashboard sections">
+  <button role="tab" id="t-di" aria-selected="true" data-tab="di">Design Imperatives</button>
+  <button role="tab" id="t-heat" aria-selected="false" data-tab="heat">Capacity Heat Map</button>
+  <button role="tab" id="t-scatter" aria-selected="false" data-tab="scatter">Priority Scatterplot</button>
+</nav>
+
+<!-- DESIGN IMPERATIVES -->
+<section class="panel" id="p-di" aria-labelledby="t-di">
+  <h2>Design Imperative assessment</h2>
+  <p class="sub">Each score averages the statement-level means within an imperative. The axis runs from 1 to 5, the full range of the question, so scores are not visually inflated. The dashed line marks the midpoint (3).</p>
+  <div class="stats" id="di-stats"></div>
+  <div class="card">
+    <div class="controls">
+      <div class="ctl">Sort <div class="seg" id="di-sort"><button aria-pressed="true" data-v="order">Survey order</button><button aria-pressed="false" data-v="score">Score</button></div></div>
+    </div>
+    <div class="axis"><div></div><div class="ticks" id="di-ticks"></div><div style="text-align:right">Response · N/A</div></div>
+    <div id="di-rows"></div>
+    <p class="note">Response rate and N/A counts show how many respondents answered each imperative. Response depth falls from the first imperative to the last, which may reflect question fatigue or respondents lacking domain knowledge in areas like partnerships, finance and research. Select a row to see its statements.</p>
+  </div>
+  <div class="card detail" id="di-detail"></div>
+</section>
+
+<!-- HEAT MAP -->
+<section class="panel" id="p-heat" hidden aria-labelledby="t-heat">
+  <h2>Capacity by priority and dimension</h2>
+  <p class="sub">Average rating (1–5) across respondents for each of the five capacity dimensions. Partnerships rates strongest. Funding and Systems &amp; Infrastructure rate weakest, though results reflect the respondent mix (students and alumni alongside senior administrators).</p>
+  <div class="card">
+    <div class="controls">
+      <div class="ctl">Sort rows <select id="h-sort"><option value="order">Workbook order</option><option value="avg-desc">Average capacity, high to low</option><option value="avg-asc">Average capacity, low to high</option><option value="Funding">Funding</option><option value="Talent">Talent</option><option value="Systems">Systems &amp; Infrastructure</option><option value="Experience">Experience</option><option value="Partnerships">Partnerships</option></select></div>
+      <div class="ctl">Color scale <div class="seg" id="h-scale"><button aria-pressed="true" data-v="full">Full 1–5</button><button aria-pressed="false" data-v="data">Data range</button></div></div>
+      <div class="legend"><span id="lg-lo">1</span><div class="grad" id="lg-grad"></div><span id="lg-hi">5</span></div>
+    </div>
+    <div class="scroll"><table class="heat" id="heat"></table></div>
+    <p class="note">The Average column is outlined. Every score sits between 2.0 and 3.7, so the full 1–5 scale shows how centered the data is; switch to Data range to separate the cells.</p>
+  </div>
+</section>
+
+<!-- SCATTER -->
+<section class="panel" id="p-scatter" hidden aria-labelledby="t-scatter">
+  <h2>Priority vs. capacity</h2>
+  <p class="sub">Dots are strategic priorities, lettered alphabetically. Position shows how highly respondents ranked a priority against NDSU's current capacity to deliver it. Nearly all priorities cluster in the middle, so treat quadrants as prompts for discussion.</p>
+  <div class="card">
+    <div class="controls">
+      <div class="ctl">Ranking method <div class="seg" id="s-method"><button aria-pressed="true" data-v="top10">Top 10</button><button aria-pressed="false" data-v="full">Full 16</button><button aria-pressed="false" data-v="score">Scoring</button></div></div>
+      <div class="ctl">Axes <div class="seg" id="s-range"><button aria-pressed="true" data-v="full">Full scale</button><button aria-pressed="false" data-v="zoom">Zoom to data</button></div></div>
+    </div>
+    <div class="plot">
+      <div>
+        <svg id="sc" viewBox="0 0 760 540" width="100%" role="img" aria-label="Scatterplot of average capacity against priority for sixteen strategic priorities"></svg>
+        <div class="qkey">
+          <span><i style="background:var(--q-proto)"></i>Prototype: high priority, low capacity</span>
+          <span><i style="background:var(--q-scale)"></i>Scale: high priority, high capacity</span>
+          <span><i style="background:var(--q-lev)"></i>Leverage: lower priority, high capacity</span>
+          <span><i style="background:var(--q-defer)"></i>Defer: lower priority, low capacity</span>
+        </div>
+      </div>
+      <div class="scroll"><table class="qlist" id="sc-list"></table></div>
+    </div>
+    <p class="note" id="s-note"></p>
+  </div>
+  <div class="flag"><b>Data notes.</b> Two respondents gave uniform or very incomplete capacity ratings; their responses are included. Quadrant lines sit at a capacity of 3.0 and at the midpoint of each ranking scale.</div>
+</section>
+<p class="source">Source: NDSU Design Readiness Assessment, October 2026. Prepared by the University Design Institute (UDI) at Arizona State University.</p>
+</div>
+<div class="tip" id="tip" hidden></div>
+
+<script>
+(function(){
+var $=function(s){return document.querySelector(s)};
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})}
+function f2(v){return v.toFixed(2)}
+
+/* ---------- DATA ---------- */
+var DI=[
+ {name:"Modernized University Mission",score:2.6389,resp:188,rate:96.41,poss:195,st:[
+  ["Our institution’s mission connects our purpose to the larger needs of community and society",3.7667],
+  ["Our institution's mission is consistently used to guide strategy and resource allocation.",2.7097],
+  ["Our institution regularly engages stakeholders in defining our potential impact and who should benefit.",2.875],
+  ["Our institution has specific outcomes it uses to define and track its impact on its communities.",2.1],
+  ["Our institution regularly tracks progress on its outcomes and impact.",2.2333],
+  ["Our institution regularly reports on its impact to internal audiences.",2.2581],
+  ["Our institution regularly reports on its impact to external audiences.",2.5313]]},
+ {name:"Agile and Inclusive Leaders and Culture",score:2.381,resp:166,rate:98.81,poss:168,st:[
+  ["Our institution has a culture that encourages innovation, experimentation and problem-solving focused on improving our outcomes and impact.",2.75],
+  ["People across our institution are encouraged to identify challenges, surface opportunities, and contribute to designing solutions.",2.8438],
+  ["People across our institution have the permission and time to develop new models or approaches to addressing institutional challenges and opportunities.",2.375],
+  ["Our institution has dedicated funding or resources that support innovation and experimentation.",2.1613],
+  ["Our institution has defined structures or processes that support testing new approaches before full implementation.",2.0],
+  ["Our institution purposefully develops leadership capacity and innovative culture among faculty, staff, and administrators.",2.129]]},
+ {name:"Transformative Learner Experience",score:3.0444,resp:157,rate:93.45,poss:168,st:[
+  ["Learner success is embraced as a shared responsibility of all faculty and staff.",3.1333],
+  ["Learner success is treated as central to our institution's core purpose and identity.",3.3226],
+  ["Our institution regularly engages learners and relevant stakeholders to understand changing needs and expectations that inform program and service redesign and new program development.",2.8276],
+  ["Our institution has specific programs, pathways, or supports designed for learners returning to higher education at different life stages.",2.8387],
+  ["Our institution defines learning and student-experience outcomes and collects data on those outcomes.",3.2414],
+  ["Our institution uses student learning and experience data to make improvements to programs, services, or policies.",2.9]]},
+ {name:"Robust Digital Solutions",score:2.8571,resp:169,rate:86.67,poss:195,st:[
+  ["Our institution has a strategic approach to technology that advances its mission, purpose, learning, research, operations, and broader impact.",2.5333],
+  ["Faculty and staff have access to the digital tools and training they need to do their work or learning effectively.",2.8889],
+  ["Students have access to technologies that build their digital technology skills and literacy.",3.24],
+  ["Faculty, staff, and students have access to technical support when using digital tools.",3.25],
+  ["Our institution has staff with the expertise needed to support digital technology adoption and experimentation.",3.0],
+  ["Our institution has the technical infrastructure needed to adopt and experiment with existing and emerging technologies.",2.5185],
+  ["Our institution uses evidence to evaluate technology effectiveness and to guide future technology adoption decisions.",2.5652]]},
+ {name:"Diversified Partnerships and Financial Models",score:2.671,resp:208,rate:83.2,poss:250,st:[
+  ["Our institution has partnerships and collaborations that advance institutional priorities and expand impact.",3.3667],
+  ["Our institution regularly seeks input from external partners and community stakeholders to shape its partnership strategy.",2.8966],
+  ["Our institution has staff with the expertise needed to develop and manage external partnerships.",2.6897],
+  ["Our institution has defined processes and decision criteria for developing, managing, and evaluating partnerships.",2.2222],
+  ["Our institution tracks partnership outcomes and uses that information to guide future partnership decisions.",2.2083],
+  ["Our institution has a set of diversified revenue streams that strengthens its long-term sustainability.",2.3846],
+  ["Our institution has staff with the expertise needed to develop and manage a diversified financial strategy.",3.0741],
+  ["Our institution has processes and decision criteria for developing, managing, and evaluating alternative revenue or financial models.",2.619],
+  ["Our institution tracks the outcomes and risks of its diversified financial models and uses that tracking information to guide future financial decisions.",2.2778]]},
+ {name:"Collaborative and Civic-Minded Research and Discovery",score:2.9524,resp:163,rate:83.59,poss:195,st:[
+  ["Our institution's research priorities are informed by societal or community needs.",3.3571],
+  ["External partners and community members are engaged in shaping and co-producing our institution's research priorities and questions.",2.6923],
+  ["Our institution has dedicated investment strategies and infrastructure that support interdisciplinary research.",2.3462],
+  ["Our institution has research talent with the expertise needed to pursue interdisciplinary, community-engaged research.",3.3793],
+  ["Our institution measures and tracks the impact of its research.",3.0741],
+  ["Our institution communicates the impact of its research to internal and/or external audiences.",3.0],
+  ["Our institution uses that evidence to strengthen future research priorities and partnerships.",2.7083]]}
+];
+DI.forEach(function(d,i){d.i=i;d.na=d.poss-d.resp});
+
+var PR=[
+ ["P1","Build the Bison Experience from Entry to Career",2.8616,3.9355,3.6667,12.72,0.8429,78],
+ ["P2","Guarantee Experiential Learning for Every Graduate",2.8105,6.75,5.3043,9.45,0.7983,44],
+ ["P3","Modernize & Broaden NDSU's Land-Grant Mission",3.1548,4.8065,4.5333,11.95,0.9238,53],
+ ["P4","Lead the Nation in Food and Land Stewardship",3.3247,11.1304,8,5.33,0.8745,3],
+ ["P5","Align Academics, Athletics and The Foundation Around One Story",3.0194,9.64,6.5714,6.64,0.8536,16],
+ ["P6","Create a Partnership and Engagement 'Front Door'",2.7742,7.1667,6.381,8.28,0.8766,28],
+ ["P7","Rebuild General Education Around Life, Work and Civic Readiness",2.7935,8,5.7895,8.19,0.8994,28],
+ ["P8","Develop Flexible Learning Pathways Without Losing the Residential Core",2.539,7.0357,5.3636,9.14,0.8865,34],
+ ["P9","Engage Alumni as Recruiters, Mentors, Storytellers, and Connectors",3.129,10.52,7.9231,5.83,1.0014,3],
+ ["P10","Turn Fargo and North Dakota into a Recruiting Advantage",2.7161,9.0333,5.6471,7.67,0.8251,19],
+ ["P11","Align Budget, Incentives and Accountability with Strategy",2.6452,3.8065,3.5333,12.84,0.8327,81],
+ ["P12","Build a Leadership Development System",2.4323,7.3103,5.8261,9.06,0.8502,31],
+ ["P13","Strengthen Research Translation and Commercialization",2.9097,8.5357,6.4444,7.58,0.7818,25],
+ ["P14","Create a Bold, Unified, One NDSU Brand",2.7355,5.8621,4.48,10.61,0.8506,44],
+ ["P15","Build a Focused K-12 and Educator Workforce Strategy",2.6581,12.5238,6.5,4.44,0.8304,3],
+ ["P16","Make AI a Practical Advantage in Every Field",2.2452,10.375,7.4286,6.27,0.7478,9]
+].map(function(r){return{id:r[0],name:r[1],cap:r[2],rankFull:r[3],rank10:r[4],score:r[5],sd:r[6],top5:r[7]}});
+PR.slice().sort(function(a,b){return a.name.localeCompare(b.name)}).forEach(function(p,i){p.letter=String.fromCharCode(65+i)});
+PR.forEach(function(p){p.cons=p.sd<0.75?"High":p.sd>1.1?"Low":"Medium"});
+
+var HM=[
+ ["Build the Bison Experience from Entry to Career",2.4,3.2,2.6,3.1,3,2.9],
+ ["Guarantee Experiential Learning for Every Graduate",2.5,2.9,2.5,3,3.3,2.8],
+ ["Modernize & Broaden NDSU's Land-Grant Mission",2.8,3.3,2.9,3.2,3.6,3.2],
+ ["Lead the Nation in Food and Land Stewardship",2.9,3.5,3.1,3.5,3.6,3.3],
+ ["Align Academics, Athletics and The Foundation Around One Story",3.1,3.2,2.8,2.7,3.3,3],
+ ["Create a Partnership and Engagement 'Front Door'",2.5,2.9,2.5,2.5,3.3,2.7],
+ ["Rebuild General Education Around Life, Work and Civic Readiness",2.6,3,2.7,2.6,3,2.8],
+ ["Develop Flexible Learning Pathways Without Losing the Residential Core",2.4,2.7,2.5,2.5,2.6,2.5],
+ ["Engage Alumni as Recruiters, Mentors, Storytellers, and Connectors",3.1,3.1,2.8,2.9,3.7,3.1],
+ ["Turn Fargo and North Dakota into a Recruiting Advantage",2.5,2.9,2.5,2.5,3.2,2.7],
+ ["Align Budget, Incentives and Accountability with Strategy",2.8,2.9,2.5,2.3,2.7,2.6],
+ ["Build a Leadership Development System",2.3,2.6,2.4,2.2,2.7,2.4],
+ ["Strengthen Research Translation and Commercialization",2.8,3.1,2.8,2.7,3.2,2.9],
+ ["Create a Bold, Unified, One NDSU Brand",2.6,2.9,2.6,2.5,3,2.7],
+ ["Build a Focused K-12 and Educator Workforce Strategy",2.3,2.6,2.5,2.8,3.1,2.7],
+ ["Make AI a Practical Advantage in Every Field",2.2,2.3,2.1,2,2.7,2.3]
+].map(function(r,i){return{n:i+1,name:r[0],v:[r[1],r[2],r[3],r[4],r[5]],avg:r[6]}});
+var DIMS=["Funding","Talent","Systems & Infrastructure","Experience","Partnerships"];
+var DIMKEY=["Funding","Talent","Systems","Experience","Partnerships"];
+
+/* ---------- TABS ---------- */
+var tabs=document.querySelectorAll('nav.tabs button');
+function showTab(id){
+  tabs.forEach(function(b){b.setAttribute('aria-selected',b.dataset.tab===id)});
+  ['di','heat','scatter'].forEach(function(t){$('#p-'+t).hidden=t!==id});
+  try{history.replaceState(null,'','#'+id)}catch(e){}
+}
+tabs.forEach(function(b){b.addEventListener('click',function(){showTab(b.dataset.tab)})});
+var MODE=window.NDSU_MODE||'all';
+if(MODE!=='all'){document.querySelector('nav.tabs').hidden=true;showTab(MODE)}
+else{var h=(location.hash||'').slice(1);if(h==='heat'||h==='scatter'||h==='di')showTab(h)}
+
+function seg(id,cb){
+  var el=$(id);
+  el.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    el.querySelectorAll('button').forEach(function(x){x.setAttribute('aria-pressed',x===b)});
+    cb(b.dataset.v);
+  });
+}
+
+/* ---------- TOOLTIP ---------- */
+var tip=$('#tip');
+function showTip(html,e){
+  tip.innerHTML=html;tip.hidden=false;
+  var x=e.clientX+14,y=e.clientY+14;
+  var w=tip.offsetWidth,hh=tip.offsetHeight;
+  if(x+w>window.innerWidth-8)x=e.clientX-w-14;
+  if(y+hh>window.innerHeight-8)y=e.clientY-hh-14;
+  tip.style.left=Math.max(8,x)+'px';tip.style.top=Math.max(8,y)+'px';
+}
+function hideTip(){tip.hidden=true}
+
+/* ---------- DESIGN IMPERATIVES ---------- */
+var diSort='order',diSel=1;
+(function(){
+  var lo=DI.slice().sort(function(a,b){return a.score-b.score})[0],hi=DI.slice().sort(function(a,b){return b.score-a.score})[0];
+  var avg=DI.reduce(function(s,d){return s+d.score},0)/DI.length;
+  var low=[];DI.forEach(function(d){d.st.forEach(function(s){low.push([s[1],s[0],d.name])})});
+  low.sort(function(a,b){return a[0]-b[0]});
+  $('#di-stats').innerHTML=
+   '<div class="stat"><div class="k">Average, six imperatives</div><div class="v">'+f2(avg)+'</div><div class="n">on a 1–5 scale</div></div>'+
+   '<div class="stat"><div class="k">Highest imperative</div><div class="v">'+f2(hi.score)+'</div><div class="n">'+esc(hi.name)+'</div></div>'+
+   '<div class="stat"><div class="k">Lowest imperative</div><div class="v">'+f2(lo.score)+'</div><div class="n">'+esc(lo.name)+'</div></div>'+
+   '<div class="stat"><div class="k">Lowest statement</div><div class="v">'+f2(low[0][0])+'</div><div class="n">'+esc(low[0][2])+': defined structures for testing new approaches</div></div>';
+  var t='';for(var i=1;i<=5;i++)t+='<span style="left:'+((i-1)/4*100)+'%">'+i+'</span>';
+  $('#di-ticks').innerHTML=t;
+})();
+function renderDI(){
+  var list=DI.slice();
+  if(diSort==='score')list.sort(function(a,b){return b.score-a.score});
+  $('#di-rows').innerHTML=list.map(function(d){
+    var w=(d.score-1)/4*100;
+    return '<div class="row'+(d.i===diSel?' sel':'')+'" data-i="'+d.i+'"><div class="lbl">'+esc(d.name)+'</div>'+
+     '<div class="track"><div class="bar" style="width:'+w+'%"></div><div class="mid"></div><span class="val" style="left:'+w+'%">'+f2(d.score)+'</span></div>'+
+     '<div class="meta">'+d.rate.toFixed(1)+'% resp.<br>'+d.na+' N/A</div></div>';
+  }).join('');
+  var d=DI[diSel];
+  var chips=DI.map(function(x){return '<button class="chip" data-i="'+x.i+'" aria-pressed="'+(x.i===diSel)+'">'+esc(x.name)+'</button>'}).join('');
+  var st=d.st.map(function(s){
+    var w=(s[1]-1)/4*100;
+    return '<div class="stmt"><div>'+esc(s[0])+'</div><div class="track"><div class="bar" style="width:'+w+'%"></div><div class="mid"></div><span class="val" style="left:'+w+'%">'+f2(s[1])+'</span></div></div>';
+  }).join('');
+  $('#di-detail').innerHTML='<h3>Statement scores</h3><p class="sub" style="margin-bottom:12px">Average rating for each statement within the selected imperative, on the same 1–5 axis.</p><div class="chip-row">'+chips+'</div>'+st;
+}
+$('#di-rows').addEventListener('click',function(e){var r=e.target.closest('.row');if(r){diSel=+r.dataset.i;renderDI()}});
+$('#di-detail').addEventListener('click',function(e){var r=e.target.closest('.chip');if(r){diSel=+r.dataset.i;renderDI()}});
+seg('#di-sort',function(v){diSort=v;renderDI()});
+renderDI();
+
+/* ---------- HEAT MAP ---------- */
+var hScale='full',hSort='order';
+function lerp(a,b,t){return a+(b-a)*t}
+function hexRGB(h){return[1,3,5].map(function(i){return parseInt(h.substr(i,2),16)})}
+var STOPS=[hexRGB('#FFC627'),hexRGB('#FFFFFF'),hexRGB('#00A3E0')];
+function ramp(t){
+  t=Math.max(0,Math.min(1,t));
+  var a,b,u;
+  if(t<.5){a=STOPS[0];b=STOPS[1];u=t/.5}else{a=STOPS[1];b=STOPS[2];u=(t-.5)/.5}
+  return 'rgb('+[0,1,2].map(function(k){return Math.round(lerp(a[k],b[k],u))}).join(',')+')';
+}
+function renderHeat(){
+  var lo=hScale==='full'?1:2.0,hi=hScale==='full'?5:3.7;
+  $('#lg-lo').textContent=lo.toFixed(1);$('#lg-hi').textContent=hi.toFixed(1);
+  $('#lg-grad').style.background='linear-gradient(to right,'+ramp(0)+','+ramp(.5)+','+ramp(1)+')';
+  var rows=HM.slice();
+  if(hSort==='avg-desc')rows.sort(function(a,b){return b.avg-a.avg});
+  else if(hSort==='avg-asc')rows.sort(function(a,b){return a.avg-b.avg});
+  else if(hSort!=='order'){var k=DIMKEY.indexOf(hSort);rows.sort(function(a,b){return b.v[k]-a.v[k]})}
+  var html='<thead><tr><th class="pl">Priority</th>'+DIMS.map(function(d){return '<th>'+esc(d)+'</th>'}).join('')+'<th>Average</th></tr></thead><tbody>';
+  rows.forEach(function(r){
+    html+='<tr><td class="pl">'+esc(r.name)+'</td>';
+    r.v.forEach(function(v,k){
+      var t=(v-lo)/(hi-lo),c=ramp(t);
+      html+='<td class="c" style="background:'+c+';color:'+'#000'+'" data-n="'+esc(r.name)+'" data-d="'+esc(DIMS[k])+'" data-v="'+v.toFixed(1)+'">'+v.toFixed(1)+'</td>';
+    });
+    var t2=(r.avg-lo)/(hi-lo);
+    html+='<td class="c avg" style="background:'+ramp(t2)+';color:'+'#000'+'" data-n="'+esc(r.name)+'" data-d="Average capacity" data-v="'+r.avg.toFixed(1)+'">'+r.avg.toFixed(1)+'</td></tr>';
+  });
+  $('#heat').innerHTML=html+'</tbody>';
+}
+$('#heat').addEventListener('mousemove',function(e){
+  var c=e.target.closest('td.c');if(!c){hideTip();return}
+  showTip('<b>'+c.dataset.n+'</b><br>'+c.dataset.d+': '+c.dataset.v,e);
+});
+$('#heat').addEventListener('mouseleave',hideTip);
+$('#h-sort').addEventListener('change',function(e){hSort=e.target.value;renderHeat()});
+seg('#h-scale',function(v){hScale=v;renderHeat()});
+renderHeat();
+
+/* ---------- SCATTER ---------- */
+var sMethod='top10',sRange='full',sHl=null;
+var QCOL={PROTOTYPE:'var(--q-proto)',SCALE:'var(--q-scale)',LEVERAGE:'var(--q-lev)',DEFER:'var(--q-defer)'};
+var QTXT={PROTOTYPE:'#000',SCALE:'#000',LEVERAGE:'#000',DEFER:'#fff'};
+var M={
+ top10:{key:'rank10',flip:false,thr:5.5,full:[1,10],label:'Average rank, Top 10 method (1 = top priority)',note:'Top 10 method: ranks 11–16 are set to zero so every respondent is treated as having ranked a top 10 (some respondents ranked all 16, others ranked 10).'},
+ full:{key:'rankFull',flip:false,thr:8.5,full:[1,16],label:'Average rank, all 16 (1 = top priority)',note:'Full 16 method: uses every ranking submitted. Respondents who ranked only 10 leave the remaining priorities unranked, so averages mix two ranking behaviors.'},
+ score:{key:'score',flip:true,thr:8.5,full:[1,16],label:'Average score (higher = higher priority)',note:'Scoring method: converts each respondent\'s ranking to points, so unranked priorities share the lowest tied score. Higher is a higher priority.'}
+};
+function quad(p,m){
+  var v=p[m.key],hiPri=m.flip?v>=m.thr:v<=m.thr,hiCap=p.cap>=3;
+  return hiPri?(hiCap?'SCALE':'PROTOTYPE'):(hiCap?'LEVERAGE':'DEFER');
+}
+function renderScatter(){
+  var m=M[sMethod],W=760,H=540,L=60,R=22,T=26,B=52,pw=W-L-R,ph=H-T-B;
+  var xd=[1,5],yd=m.full.slice();
+  if(sRange==='zoom'){
+    var xs=PR.map(function(p){return p.cap}),ys=PR.map(function(p){return p[m.key]});
+    xd=[Math.min.apply(null,xs.concat([3]))-.15,Math.max.apply(null,xs.concat([3]))+.15];
+    var ylo=Math.min.apply(null,ys.concat([m.thr])),yhi=Math.max.apply(null,ys.concat([m.thr])),pad=(yhi-ylo)*.08;
+    yd=[ylo-pad,yhi+pad];
+  }
+  function X(v){return L+(v-xd[0])/(xd[1]-xd[0])*pw}
+  function Y(v){var u=(v-yd[0])/(yd[1]-yd[0]);return T+(m.flip?(1-u):u)*ph}
+  var s='';
+  var x3=X(3),yt=Y(m.thr);
+  // quadrant tints
+  var top0=T,bot=T+ph;
+  var hiTop=m.flip?T:T,hiBot=yt,loTop=yt,loBot=T+ph;
+  s+='<rect x="'+L+'" y="'+T+'" width="'+(x3-L)+'" height="'+(yt-T)+'" fill="var(--q-proto)" opacity=".10"/>';
+  s+='<rect x="'+x3+'" y="'+T+'" width="'+(L+pw-x3)+'" height="'+(yt-T)+'" fill="var(--q-scale)" opacity=".10"/>';
+  s+='<rect x="'+x3+'" y="'+yt+'" width="'+(L+pw-x3)+'" height="'+(T+ph-yt)+'" fill="var(--q-lev)" opacity=".12"/>';
+  s+='<rect x="'+L+'" y="'+yt+'" width="'+(x3-L)+'" height="'+(T+ph-yt)+'" fill="var(--q-defer)" opacity=".10"/>';
+  // grid + ticks
+  var xt=[];for(var i=Math.ceil(xd[0]*2)/2;i<=xd[1]+1e-9;i+=(sRange==='zoom'?.25:.5))xt.push(i);
+  xt.forEach(function(v){s+='<line x1="'+X(v)+'" x2="'+X(v)+'" y1="'+T+'" y2="'+(T+ph)+'" stroke="var(--grid)"/><text x="'+X(v)+'" y="'+(T+ph+18)+'" text-anchor="middle" font-size="11" fill="var(--muted)">'+v.toFixed(sRange==='zoom'?2:1)+'</text>'});
+  var span=yd[1]-yd[0],step=sRange==='zoom'?(span>8?2:1):(m.full[1]>10?2:1);
+  var y0=Math.ceil(yd[0]);
+  for(var v=y0;v<=yd[1]+1e-9;v+=step){s+='<line x1="'+L+'" x2="'+(L+pw)+'" y1="'+Y(v)+'" y2="'+Y(v)+'" stroke="var(--grid)"/><text x="'+(L-8)+'" y="'+(Y(v)+4)+'" text-anchor="end" font-size="11" fill="var(--muted)">'+v+'</text>'}
+  s+='<rect x="'+L+'" y="'+T+'" width="'+pw+'" height="'+ph+'" fill="none" stroke="var(--line)"/>';
+  s+='<line x1="'+x3+'" x2="'+x3+'" y1="'+T+'" y2="'+(T+ph)+'" stroke="var(--muted)" stroke-dasharray="5 4"/>';
+  s+='<line x1="'+L+'" x2="'+(L+pw)+'" y1="'+yt+'" y2="'+yt+'" stroke="var(--muted)" stroke-dasharray="5 4"/>';
+  // corner labels
+  s+='<text x="'+(L+8)+'" y="'+(T+16)+'" font-size="11" font-weight="500" fill="var(--muted)">Prototype</text>';
+  s+='<text x="'+(L+pw-8)+'" y="'+(T+16)+'" text-anchor="end" font-size="11" font-weight="500" fill="var(--muted)">Scale</text>';
+  s+='<text x="'+(L+pw-8)+'" y="'+(T+ph-8)+'" text-anchor="end" font-size="11" font-weight="500" fill="var(--muted)">Leverage</text>';
+  s+='<text x="'+(L+8)+'" y="'+(T+ph-8)+'" font-size="11" font-weight="500" fill="var(--muted)">Defer</text>';
+  // axis titles
+  s+='<text x="'+(L+pw/2)+'" y="'+(H-10)+'" text-anchor="middle" font-size="12" fill="var(--muted)">Average capacity (1 = low, 5 = high)</text>';
+  s+='<text transform="translate(14,'+(T+ph/2)+') rotate(-90)" text-anchor="middle" font-size="12" fill="var(--muted)">'+esc(m.label)+'</text>';
+  // dots
+  PR.forEach(function(p){
+    var q=quad(p,m);p.q=q;
+    var cx=X(p.cap),cy=Y(p[m.key]);
+    s+='<g class="dot" data-id="'+p.id+'" style="cursor:pointer"><circle cx="'+cx+'" cy="'+cy+'" r="'+(sHl===p.id?15:12)+'" fill="'+QCOL[q]+'" stroke="var(--surface)" stroke-width="2"/>'+
+       '<text x="'+cx+'" y="'+(cy+4)+'" text-anchor="middle" font-size="12" font-weight="600" fill="'+QTXT[q]+'" style="pointer-events:none">'+p.letter+'</text></g>';
+  });
+  $('#sc').innerHTML=s;
+  // list
+  var rows=PR.slice().sort(function(a,b){return m.flip?b[m.key]-a[m.key]:a[m.key]-b[m.key]});
+  var rl=sMethod==='score'?'Score':'Avg rank';
+  $('#sc-list').innerHTML='<thead><tr><th></th><th>Priority</th><th style="text-align:right">Cap.</th><th style="text-align:right">'+rl+'</th><th style="text-align:right">% top 5</th></tr></thead><tbody>'+
+   rows.map(function(p){
+     return '<tr data-id="'+p.id+'" class="'+(sHl===p.id?'hl':'')+'"><td><span class="ltr" style="background:'+QCOL[p.q]+';color:'+QTXT[p.q]+'">'+p.letter+'</span></td><td>'+esc(p.name)+'</td><td class="num">'+f2(p.cap)+'</td><td class="num">'+f2(p[m.key])+'</td><td class="num">'+p.top5+'%</td></tr>';
+   }).join('')+'</tbody>';
+  var counts={PROTOTYPE:0,SCALE:0,LEVERAGE:0,DEFER:0};PR.forEach(function(p){counts[p.q]++});
+  $('#s-note').textContent=m.note+' Current split: '+counts.PROTOTYPE+' Prototype, '+counts.SCALE+' Scale, '+counts.LEVERAGE+' Leverage, '+counts.DEFER+' Defer. Quadrant lines sit at capacity 3.0 and the midpoint of the ranking scale.';
+}
+function byId(id){return PR.filter(function(p){return p.id===id})[0]}
+function dotTip(p,e){
+  var m=M[sMethod];
+  showTip('<b>'+p.letter+'. '+esc(p.name)+'</b><br>Quadrant: '+p.q.charAt(0)+p.q.slice(1).toLowerCase()+'<br>Capacity: '+f2(p.cap)+'<br>'+(sMethod==='score'?'Score: ':'Avg rank: ')+f2(p[m.key])+'<br>Top-5 share: '+p.top5+'%<br>Consensus: '+p.cons+' (SD '+f2(p.sd)+')',e);
+}
+function hl(id){sHl=id;renderScatter()}
+$('#sc').addEventListener('mousemove',function(e){
+  var g=e.target.closest('.dot');if(!g){hideTip();return}
+  dotTip(byId(g.dataset.id),e);
+});
+$('#sc').addEventListener('mouseleave',hideTip);
+$('#sc').addEventListener('click',function(e){var g=e.target.closest('.dot');hl(g&&sHl!==g.dataset.id?g.dataset.id:null)});
+$('#sc-list').addEventListener('click',function(e){var r=e.target.closest('tr[data-id]');if(r)hl(sHl===r.dataset.id?null:r.dataset.id)});
+seg('#s-method',function(v){sMethod=v;renderScatter()});
+seg('#s-range',function(v){sRange=v;renderScatter()});
+renderScatter();
+})();
+</script>
+
+</body></html>
